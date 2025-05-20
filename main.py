@@ -15,9 +15,9 @@ from typing import Optional
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from core_agent.agent.base_agent import AgentRequest
 from core_agent.agent.langgraph_agent import LangGraphAgent
 from communication.transport.websocket_transport import WebSocketTransport
-from shared.utils.file_utils import read_file, get_file_metadata
 from shared.utils.logging_utils import setup_logger
 
 
@@ -28,42 +28,53 @@ async def handle_generate_code(params):
     language = params.get("language", "python")
     options = params.get("options", {})
 
-    # This is a placeholder implementation
-    # In a real implementation, this would call the agent
-    return {
-        "code": f"# Generated code for: {prompt}\n\ndef example_function():\n    # TODO: Implement based on prompt\n    pass",
-        "explanation": "This is a placeholder implementation.",
-        "language": language
-    }
+    # Create a request for the agent
+    request = AgentRequest(
+        task_type="generate_code",
+        inputs={
+            "prompt": prompt,
+            "context": context,
+            "language": language,
+            "options": options
+        }
+    )
+
+    # Execute the request
+    response = await agent.execute(request)
+
+    # Check for errors
+    if response.status == "error":
+        raise Exception(response.error)
+
+    # Return the results
+    return response.results
 
 
 async def handle_analyze_code(params):
     """Handle analyze_code method."""
     file_path = params.get("file_path", "")
     content = params.get("content", "")
+    language = params.get("language", "python")
 
-    # This is a placeholder implementation
-    # In a real implementation, this would call the agent
-    return {
-        "file_path": file_path,
-        "language": "python",
-        "symbols": [
-            {
-                "name": "example_function",
-                "kind": 12,  # Function
-                "range": {
-                    "start": {"line": 0, "character": 0},
-                    "end": {"line": 2, "character": 8}
-                },
-                "selection_range": {
-                    "start": {"line": 0, "character": 0},
-                    "end": {"line": 0, "character": 16}
-                },
-                "detail": "Example function"
-            }
-        ],
-        "imports": []
-    }
+    # Create a request for the agent
+    request = AgentRequest(
+        task_type="analyze_code",
+        inputs={
+            "file_path": file_path,
+            "content": content,
+            "language": language
+        }
+    )
+
+    # Execute the request
+    response = await agent.execute(request)
+
+    # Check for errors
+    if response.status == "error":
+        raise Exception(response.error)
+
+    # Return the results
+    return response.results
 
 
 async def handle_read_file(params):
@@ -72,18 +83,25 @@ async def handle_read_file(params):
     encoding = params.get("encoding", "utf-8")
     base_dir = params.get("base_dir")
 
-    try:
-        # Read the file
-        file_content = read_file(file_path, encoding, base_dir)
-
-        # Convert to dict for JSON response
-        return {
-            "content": file_content.content,
-            "metadata": file_content.metadata.model_dump()
+    # Create a request for the agent
+    request = AgentRequest(
+        task_type="read_file",
+        inputs={
+            "file_path": file_path,
+            "encoding": encoding,
+            "base_dir": base_dir
         }
-    except Exception as e:
-        logging.error(f"Error reading file {file_path}: {str(e)}")
-        raise
+    )
+
+    # Execute the request
+    response = await agent.execute(request)
+
+    # Check for errors
+    if response.status == "error":
+        raise Exception(response.error)
+
+    # Return the results
+    return response.results
 
 
 async def handle_get_file_metadata(params):
@@ -91,15 +109,87 @@ async def handle_get_file_metadata(params):
     file_path = params.get("file_path", "")
     base_dir = params.get("base_dir")
 
-    try:
-        # Get file metadata
-        metadata = get_file_metadata(file_path, base_dir)
+    # Create a request for the agent
+    request = AgentRequest(
+        task_type="get_file_metadata",
+        inputs={
+            "file_path": file_path,
+            "base_dir": base_dir
+        }
+    )
 
-        # Convert to dict for JSON response
-        return metadata.model_dump()
-    except Exception as e:
-        logging.error(f"Error getting metadata for file {file_path}: {str(e)}")
-        raise
+    # Execute the request
+    response = await agent.execute(request)
+
+    # Check for errors
+    if response.status == "error":
+        raise Exception(response.error)
+
+    # Return the results
+    return response.results
+
+
+async def handle_write_file(params):
+    """Handle write_file method."""
+    file_path = params.get("file_path", "")
+    content = params.get("content", "")
+    encoding = params.get("encoding", "utf-8")
+    base_dir = params.get("base_dir")
+    create_backup = params.get("create_backup", True)
+
+    # Create a request for the agent
+    request = AgentRequest(
+        task_type="write_file",
+        inputs={
+            "file_path": file_path,
+            "content": content,
+            "encoding": encoding,
+            "base_dir": base_dir,
+            "create_backup": create_backup,
+            "requires_confirmation": True
+        }
+    )
+
+    # Execute the request
+    response = await agent.execute(request)
+
+    # Check for errors
+    if response.status == "error":
+        raise Exception(response.error)
+
+    # Return the results
+    return response.results
+
+
+async def handle_confirm_write_file(params):
+    """Handle confirm_write_file method."""
+    file_path = params.get("file_path", "")
+    content = params.get("content", "")
+    encoding = params.get("encoding", "utf-8")
+    base_dir = params.get("base_dir")
+    create_backup = params.get("create_backup", True)
+
+    # Create a request for the agent
+    request = AgentRequest(
+        task_type="confirm_write_file",
+        inputs={
+            "file_path": file_path,
+            "content": content,
+            "encoding": encoding,
+            "base_dir": base_dir,
+            "create_backup": create_backup
+        }
+    )
+
+    # Execute the request
+    response = await agent.execute(request)
+
+    # Check for errors
+    if response.status == "error":
+        raise Exception(response.error)
+
+    # Return the results
+    return response.results
 
 
 async def main(host: str = "localhost", port: int = 8765, log_level: str = "INFO", log_file: Optional[str] = None):
@@ -133,6 +223,8 @@ async def main(host: str = "localhost", port: int = 8765, log_level: str = "INFO
     transport.register_method_handler("analyze_code", handle_analyze_code)
     transport.register_method_handler("read_file", handle_read_file)
     transport.register_method_handler("get_file_metadata", handle_get_file_metadata)
+    transport.register_method_handler("write_file", handle_write_file)
+    transport.register_method_handler("confirm_write_file", handle_confirm_write_file)
 
     # Start the transport
     await transport.start()

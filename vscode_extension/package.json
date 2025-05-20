@@ -15,7 +15,8 @@
     "onCommand:prismata.generateCode",
     "onCommand:prismata.analyzeCode",
     "onCommand:prismata.readFile",
-    "onCommand:prismata.getFileMetadata"
+    "onCommand:prismata.getFileMetadata",
+    "onCommand:prismata.writeFile"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -39,6 +40,10 @@
       {
         "command": "prismata.getFileMetadata",
         "title": "Prismata: Get File Metadata"
+      },
+      {
+        "command": "prismata.writeFile",
+        "title": "Prismata: Write File"
       }
     ],
     "configuration": {

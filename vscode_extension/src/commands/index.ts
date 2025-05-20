@@ -197,6 +197,85 @@ export function registerCommands(agentService: AgentService): vscode.Disposable[
         })
     );
 
+    // Write File command
+    disposables.push(
+        vscode.commands.registerCommand('prismata.writeFile', async () => {
+            try {
+                // Ask for file path
+                const filePathOptions = await vscode.window.showSaveDialog({
+                    saveLabel: 'Select File to Write'
+                });
+
+                if (!filePathOptions) {
+                    return; // User cancelled
+                }
+
+                const filePath = filePathOptions.fsPath;
+
+                // Ask for content
+                const content = await vscode.window.showInputBox({
+                    prompt: 'Enter content to write to the file',
+                    placeHolder: 'File content',
+                    multiline: true
+                });
+
+                if (content === undefined) {
+                    return; // User cancelled
+                }
+
+                vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Writing file...',
+                    cancellable: false
+                }, async (progress) => {
+                    try {
+                        const result = await agentService.writeFile(filePath, content);
+
+                        // Check if confirmation is required
+                        if (result.requires_confirmation) {
+                            // Show preview
+                            const previewContent = result.preview.content;
+                            const previewOperation = result.preview.operation;
+                            const previewDiff = result.preview.diff;
+
+                            // Create a webview to display the preview
+                            const panel = vscode.window.createWebviewPanel(
+                                'prismataFilePreview',
+                                'File Write Preview',
+                                vscode.ViewColumn.Beside,
+                                { enableScripts: true }
+                            );
+
+                            // Format the preview as HTML
+                            panel.webview.html = formatFilePreview(result.preview, filePath);
+
+                            // Ask for confirmation
+                            const confirm = await vscode.window.showInformationMessage(
+                                `Confirm writing to ${filePath}?`,
+                                { modal: true },
+                                'Yes', 'No'
+                            );
+
+                            if (confirm === 'Yes') {
+                                // Confirm the write operation
+                                const confirmResult = await agentService.confirmWriteFile(filePath, content);
+                                vscode.window.showInformationMessage(`File ${previewOperation === 'create' ? 'created' : 'updated'} successfully.`);
+                            } else {
+                                vscode.window.showInformationMessage('File write operation cancelled.');
+                            }
+                        } else {
+                            vscode.window.showInformationMessage(`File written successfully.`);
+                        }
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Error writing file: ${error}`);
+                    }
+                });
+            } catch (error) {
+                vscode.window.showErrorMessage(`Error: ${error}`);
+            }
+        })
+    );
+
     return disposables;
 }
 
@@ -281,6 +360,73 @@ function formatAnalysisResults(results: any): string {
 }
 
 /**
+ * Format file preview as HTML
+ */
+function formatFilePreview(preview: any, filePath: string): string {
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>File Write Preview</title>
+            <style>
+                body {
+                    font-family: var(--vscode-font-family);
+                    padding: 20px;
+                }
+                h1, h2, h3 {
+                    color: var(--vscode-editor-foreground);
+                }
+                pre {
+                    background-color: var(--vscode-editor-background);
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow: auto;
+                    white-space: pre-wrap;
+                }
+                .diff {
+                    background-color: var(--vscode-diffEditor-diagonalFill);
+                }
+                .diff-add {
+                    color: var(--vscode-diffEditor-insertedTextBackground);
+                }
+                .diff-remove {
+                    color: var(--vscode-diffEditor-removedTextBackground);
+                }
+                .operation {
+                    font-weight: bold;
+                    color: var(--vscode-statusBarItem-prominentBackground);
+                }
+            </style>
+        </head>
+        <body>
+            <h1>File Write Preview</h1>
+
+            <h2>File: ${filePath}</h2>
+
+            <p>Operation: <span class="operation">${preview.operation}</span></p>
+
+            <h3>Content</h3>
+            <pre>${escapeHtml(preview.content)}</pre>
+
+            ${preview.old_content ? `
+                <h3>Original Content</h3>
+                <pre>${escapeHtml(preview.old_content)}</pre>
+            ` : ''}
+
+            ${preview.diff ? `
+                <h3>Diff</h3>
+                <pre class="diff">${formatDiff(preview.diff)}</pre>
+            ` : ''}
+
+            <p>Please confirm this operation using the notification.</p>
+        </body>
+        </html>
+    `;
+}
+
+/**
  * Format symbols recursively
  */
 function formatSymbols(symbols: any[]): string {
@@ -298,4 +444,37 @@ function formatSymbols(symbols: any[]): string {
             `).join('')}
         </ul>
     `;
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/**
+ * Format diff output with colors
+ */
+function formatDiff(diff: string): string {
+    if (!diff) {
+        return '';
+    }
+
+    return diff.split('\n')
+        .map(line => {
+            if (line.startsWith('+')) {
+                return `<span class="diff-add">${escapeHtml(line)}</span>`;
+            } else if (line.startsWith('-')) {
+                return `<span class="diff-remove">${escapeHtml(line)}</span>`;
+            } else {
+                return escapeHtml(line);
+            }
+        })
+        .join('\n');
 }

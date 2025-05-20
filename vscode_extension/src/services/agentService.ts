@@ -247,4 +247,28 @@ export class AgentService {
             file_path: filePath
         });
     }
+
+    /**
+     * Write to a file
+     */
+    public async writeFile(filePath: string, content: string, encoding: string = 'utf-8', createBackup: boolean = true): Promise<any> {
+        return this.sendRequest('write_file', {
+            file_path: filePath,
+            content,
+            encoding,
+            create_backup: createBackup
+        });
+    }
+
+    /**
+     * Confirm a file write operation
+     */
+    public async confirmWriteFile(filePath: string, content: string, encoding: string = 'utf-8', createBackup: boolean = true): Promise<any> {
+        return this.sendRequest('confirm_write_file', {
+            file_path: filePath,
+            content,
+            encoding,
+            create_backup: createBackup
+        });
+    }
 }
