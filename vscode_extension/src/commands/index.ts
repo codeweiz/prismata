@@ -39,16 +39,16 @@ export function registerCommands(agentService: AgentService): vscode.Disposable[
                 }, async (progress) => {
                     try {
                         const result = await agentService.generateCode(prompt);
-                        
+
                         if (result && result.code) {
                             // Show preview
                             const document = await vscode.workspace.openTextDocument({
                                 content: result.code,
                                 language: result.language || 'plaintext'
                             });
-                            
+
                             await vscode.window.showTextDocument(document);
-                            
+
                             // Show explanation if available
                             if (result.explanation) {
                                 vscode.window.showInformationMessage(result.explanation);
@@ -77,7 +77,7 @@ export function registerCommands(agentService: AgentService): vscode.Disposable[
                 }, async (progress) => {
                     try {
                         const result = await agentService.analyzeCode();
-                        
+
                         // Create a webview to display the analysis results
                         const panel = vscode.window.createWebviewPanel(
                             'prismataAnalysis',
@@ -85,11 +85,110 @@ export function registerCommands(agentService: AgentService): vscode.Disposable[
                             vscode.ViewColumn.Beside,
                             { enableScripts: true }
                         );
-                        
+
                         // Format the analysis results as HTML
                         panel.webview.html = formatAnalysisResults(result);
                     } catch (error) {
                         vscode.window.showErrorMessage(`Error analyzing code: ${error}`);
+                    }
+                });
+            } catch (error) {
+                vscode.window.showErrorMessage(`Error: ${error}`);
+            }
+        })
+    );
+
+    // Read File command
+    disposables.push(
+        vscode.commands.registerCommand('prismata.readFile', async () => {
+            try {
+                // Ask for file path if needed
+                const filePathOptions = await vscode.window.showOpenDialog({
+                    canSelectFiles: true,
+                    canSelectFolders: false,
+                    canSelectMany: false,
+                    openLabel: 'Select File to Read'
+                });
+
+                if (!filePathOptions || filePathOptions.length === 0) {
+                    return; // User cancelled
+                }
+
+                const filePath = filePathOptions[0].fsPath;
+
+                vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Reading file...',
+                    cancellable: false
+                }, async (progress) => {
+                    try {
+                        const result = await agentService.readFile(filePath);
+
+                        if (result && result.content) {
+                            // Show file content in a new editor
+                            const document = await vscode.workspace.openTextDocument({
+                                content: result.content,
+                                language: 'plaintext'
+                            });
+
+                            await vscode.window.showTextDocument(document);
+
+                            // Show metadata in output channel
+                            const outputChannel = vscode.window.createOutputChannel('Prismata File Info');
+                            outputChannel.appendLine('File Metadata:');
+                            for (const [key, value] of Object.entries(result.metadata)) {
+                                outputChannel.appendLine(`${key}: ${JSON.stringify(value)}`);
+                            }
+                            outputChannel.show();
+                        } else {
+                            vscode.window.showWarningMessage('No content was read from the file');
+                        }
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Error reading file: ${error}`);
+                    }
+                });
+            } catch (error) {
+                vscode.window.showErrorMessage(`Error: ${error}`);
+            }
+        })
+    );
+
+    // Get File Metadata command
+    disposables.push(
+        vscode.commands.registerCommand('prismata.getFileMetadata', async () => {
+            try {
+                // Ask for file path if needed
+                const filePathOptions = await vscode.window.showOpenDialog({
+                    canSelectFiles: true,
+                    canSelectFolders: true,
+                    canSelectMany: false,
+                    openLabel: 'Select File or Folder'
+                });
+
+                if (!filePathOptions || filePathOptions.length === 0) {
+                    return; // User cancelled
+                }
+
+                const filePath = filePathOptions[0].fsPath;
+
+                vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Getting file metadata...',
+                    cancellable: false
+                }, async (progress) => {
+                    try {
+                        const metadata = await agentService.getFileMetadata(filePath);
+
+                        // Show metadata in output channel
+                        const outputChannel = vscode.window.createOutputChannel('Prismata File Metadata');
+                        outputChannel.appendLine(`Metadata for: ${filePath}`);
+                        outputChannel.appendLine('----------------------------');
+                        for (const [key, value] of Object.entries(metadata)) {
+                            outputChannel.appendLine(`${key}: ${JSON.stringify(value)}`);
+                        }
+                        outputChannel.show();
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Error getting file metadata: ${error}`);
                     }
                 });
             } catch (error) {
@@ -149,17 +248,17 @@ function formatAnalysisResults(results: any): string {
         </head>
         <body>
             <h1>Code Analysis Results</h1>
-            
+
             ${results.file_path ? `<h2>File: ${results.file_path}</h2>` : ''}
-            
+
             ${results.language ? `<p>Language: ${results.language}</p>` : ''}
-            
+
             <h3>Symbols</h3>
-            ${results.symbols && results.symbols.length > 0 
-                ? formatSymbols(results.symbols) 
+            ${results.symbols && results.symbols.length > 0
+                ? formatSymbols(results.symbols)
                 : '<p>No symbols found</p>'}
-            
-            ${results.imports && results.imports.length > 0 
+
+            ${results.imports && results.imports.length > 0
                 ? `<div class="imports">
                     <h3>Imports</h3>
                     <ul>
@@ -167,8 +266,8 @@ function formatAnalysisResults(results: any): string {
                     </ul>
                   </div>`
                 : ''}
-            
-            ${results.errors && results.errors.length > 0 
+
+            ${results.errors && results.errors.length > 0
                 ? `<div class="errors">
                     <h3>Errors</h3>
                     <ul>

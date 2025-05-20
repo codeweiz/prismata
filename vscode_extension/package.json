@@ -13,7 +13,9 @@
   "activationEvents": [
     "onCommand:prismata.startAgent",
     "onCommand:prismata.generateCode",
-    "onCommand:prismata.analyzeCode"
+    "onCommand:prismata.analyzeCode",
+    "onCommand:prismata.readFile",
+    "onCommand:prismata.getFileMetadata"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -29,6 +31,14 @@
       {
         "command": "prismata.analyzeCode",
         "title": "Prismata: Analyze Code"
+      },
+      {
+        "command": "prismata.readFile",
+        "title": "Prismata: Read File"
+      },
+      {
+        "command": "prismata.getFileMetadata",
+        "title": "Prismata: Get File Metadata"
       }
     ],
     "configuration": {

@@ -161,7 +161,7 @@ export class AgentService {
     public async generateCode(prompt: string, context?: string, language?: string): Promise<any> {
         const editor = vscode.window.activeTextEditor;
         const document = editor?.document;
-        
+
         // Determine language from document if not provided
         if (!language && document) {
             language = document.languageId;
@@ -189,7 +189,7 @@ export class AgentService {
     public async analyzeCode(filePath?: string): Promise<any> {
         const editor = vscode.window.activeTextEditor;
         const document = editor?.document;
-        
+
         // Use current file if not provided
         if (!filePath && document) {
             filePath = document.uri.fsPath;
@@ -202,6 +202,49 @@ export class AgentService {
         return this.sendRequest('analyze_code', {
             file_path: filePath,
             content: document?.getText()
+        });
+    }
+
+    /**
+     * Read a file
+     */
+    public async readFile(filePath?: string, encoding: string = 'utf-8'): Promise<any> {
+        // Use current file if not provided
+        if (!filePath) {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                filePath = editor.document.uri.fsPath;
+            }
+        }
+
+        if (!filePath) {
+            throw new Error('No file to read');
+        }
+
+        return this.sendRequest('read_file', {
+            file_path: filePath,
+            encoding
+        });
+    }
+
+    /**
+     * Get file metadata
+     */
+    public async getFileMetadata(filePath?: string): Promise<any> {
+        // Use current file if not provided
+        if (!filePath) {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                filePath = editor.document.uri.fsPath;
+            }
+        }
+
+        if (!filePath) {
+            throw new Error('No file to get metadata for');
+        }
+
+        return this.sendRequest('get_file_metadata', {
+            file_path: filePath
         });
     }
 }
