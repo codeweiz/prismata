@@ -1,0 +1,78 @@
+{
+  "name": "prismata-vscode",
+  "displayName": "Prismata AI Assistant",
+  "description": "AI-powered coding assistant for VSCode",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:prismata.startAgent",
+    "onCommand:prismata.generateCode",
+    "onCommand:prismata.analyzeCode"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "prismata.startAgent",
+        "title": "Prismata: Start Agent"
+      },
+      {
+        "command": "prismata.generateCode",
+        "title": "Prismata: Generate Code"
+      },
+      {
+        "command": "prismata.analyzeCode",
+        "title": "Prismata: Analyze Code"
+      }
+    ],
+    "configuration": {
+      "title": "Prismata",
+      "properties": {
+        "prismata.agentPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Prismata agent executable"
+        },
+        "prismata.serverHost": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Host for the Prismata agent server"
+        },
+        "prismata.serverPort": {
+          "type": "number",
+          "default": 8765,
+          "description": "Port for the Prismata agent server"
+        },
+        "prismata.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start the Prismata agent on extension activation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.7",
+    "@types/vscode": "^1.60.0",
+    "@types/ws": "^8.5.4",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "eslint": "^8.26.0",
+    "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}

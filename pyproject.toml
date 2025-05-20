@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.13.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prismata"
+version = "0.1.0"
+description = "Multi-IDE AI Assistant Plugin"
+requires-python = ">=3.10"
+authors = [
+    {name = "Prismata Team"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+dependencies = [
+    "langchain>=0.1.0",
+    "langgraph>=0.0.15",
+    "pydantic>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "grpcio>=1.59.0",
+    "protobuf>=4.24.0",
+    "websockets>=11.0.0",
+    "jsonrpcserver>=5.0.0",
+    "jsonrpcclient>=4.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+    "ruff>=0.1.0"
+]
