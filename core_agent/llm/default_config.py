@@ -10,34 +10,44 @@ from core_agent.llm.llm_config import (
     LLMType,
     PromptConfig,
     CodeGenerationPromptConfig,
-    CodeAnalysisPromptConfig
+    CodeAnalysisPromptConfig,
+    CrossFileAnalysisPromptConfig,
+    CodeRefactoringPromptConfig,
+    CodeCompletionPromptConfig
 )
 
 
 # Default code generation prompt configuration
 DEFAULT_CODE_GENERATION_PROMPT = CodeGenerationPromptConfig(
     system_message="""You are an expert programming assistant that specializes in generating high-quality code.
-Your task is to generate code based on the user's prompt, considering the provided context and language.
+Your task is to generate code based on the user's prompt, considering the provided context, file path, and language.
+You should analyze the context carefully to understand the project structure, coding style, and existing patterns.
+Then generate code that seamlessly integrates with the existing codebase.
+
 Always provide clean, efficient, and well-documented code that follows best practices for the specified language.
+Make sure your code is consistent with the style and patterns found in the context.
+
 Return your response in JSON format with the following structure:
 {
     "code": "the generated code",
-    "explanation": "explanation of the code and how it addresses the prompt"
+    "explanation": "explanation of the code and how it addresses the prompt and integrates with the existing codebase"
 }""",
     user_message_template="""Generate code based on the following information:
 
 Prompt: {prompt}
 Language: {language}
+File Path: {file_path}
 Context: {context}
 Options: {options}
 
-Please provide the code and an explanation.""",
+Please provide the code that fits well with the existing codebase and an explanation of how it integrates with the context.""",
     examples=[
         {
             "user": """Generate code based on the following information:
 
 Prompt: Create a function that sorts an array of integers in ascending order
 Language: python
+File Path: utils/sorting.py
 Context: No context provided
 Options: {}""",
             "assistant": """{
@@ -132,10 +142,207 @@ Please provide a detailed analysis.""",
     ]
 )
 
+# Default cross-file analysis prompt configuration
+DEFAULT_CROSS_FILE_ANALYSIS_PROMPT = CrossFileAnalysisPromptConfig(
+    system_message="""You are an expert code analyzer that specializes in understanding dependencies between multiple files in a codebase.
+Your task is to analyze the provided files and identify dependencies between them, such as imports, inheritance, function calls, and other relationships.
+Return your response in JSON format with the following structure:
+{
+    "summary": "brief summary of the analysis",
+    "dependencies": [
+        {
+            "source_file": "path to source file",
+            "target_file": "path to target file",
+            "source_symbol": "symbol in source file (optional)",
+            "target_symbol": "symbol in target file (optional)",
+            "dependency_type": "import, inheritance, usage, implementation, or reference",
+            "description": "description of the dependency"
+        }
+    ],
+    "symbols_by_file": {
+        "file_path": [
+            {
+                "name": "symbol name",
+                "kind": "function, class, variable, etc.",
+                "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 0}},
+                "detail": "details about the symbol"
+            }
+        ]
+    },
+    "imports_by_file": {
+        "file_path": ["list of imports"]
+    }
+}""",
+    user_message_template="""Analyze the dependencies between the following files:
+
+{files}
+
+Options: {options}
+
+Please identify all dependencies between these files, including imports, inheritance relationships, function calls, and other references.""",
+    examples=[
+        {
+            "user": """Analyze the dependencies between the following files:
+
+{
+  "files": [
+    {
+      "path": "models.py",
+      "language": "python",
+      "content": "from django.db import models\n\nclass User(models.Model):\n    name = models.CharField(max_length=100)\n    email = models.EmailField(unique=True)\n\nclass Post(models.Model):\n    title = models.CharField(max_length=200)\n    content = models.TextField()\n    author = models.ForeignKey(User, on_delete=models.CASCADE)"
+    },
+    {
+      "path": "views.py",
+      "language": "python",
+      "content": "from django.shortcuts import render\nfrom .models import User, Post\n\ndef user_posts(request, user_id):\n    user = User.objects.get(id=user_id)\n    posts = Post.objects.filter(author=user)\n    return render(request, 'user_posts.html', {'user': user, 'posts': posts})"
+    }
+  ]
+}
+
+Options: {}
+
+Please identify all dependencies between these files, including imports, inheritance relationships, function calls, and other references.""",
+            "assistant": """{
+    "summary": "The codebase consists of two Python files in a Django application: models.py defines User and Post models, while views.py imports these models and uses them in a view function.",
+    "dependencies": [
+        {
+            "source_file": "views.py",
+            "target_file": "models.py",
+            "source_symbol": null,
+            "target_symbol": "User",
+            "dependency_type": "import",
+            "description": "views.py imports the User model from models.py"
+        },
+        {
+            "source_file": "views.py",
+            "target_file": "models.py",
+            "source_symbol": null,
+            "target_symbol": "Post",
+            "dependency_type": "import",
+            "description": "views.py imports the Post model from models.py"
+        },
+        {
+            "source_file": "views.py",
+            "target_file": "models.py",
+            "source_symbol": "user_posts",
+            "target_symbol": "User",
+            "dependency_type": "usage",
+            "description": "user_posts function uses the User model"
+        },
+        {
+            "source_file": "views.py",
+            "target_file": "models.py",
+            "source_symbol": "user_posts",
+            "target_symbol": "Post",
+            "dependency_type": "usage",
+            "description": "user_posts function uses the Post model"
+        }
+    ],
+    "symbols_by_file": {
+        "models.py": [
+            {
+                "name": "User",
+                "kind": "class",
+                "range": {"start": {"line": 2, "character": 0}, "end": {"line": 4, "character": 0}},
+                "detail": "Django model representing a user"
+            },
+            {
+                "name": "Post",
+                "kind": "class",
+                "range": {"start": {"line": 6, "character": 0}, "end": {"line": 9, "character": 0}},
+                "detail": "Django model representing a post with a foreign key to User"
+            }
+        ],
+        "views.py": [
+            {
+                "name": "user_posts",
+                "kind": "function",
+                "range": {"start": {"line": 3, "character": 0}, "end": {"line": 6, "character": 0}},
+                "detail": "View function that retrieves a user and their posts"
+            }
+        ]
+    },
+    "imports_by_file": {
+        "models.py": ["from django.db import models"],
+        "views.py": ["from django.shortcuts import render", "from .models import User, Post"]
+    }
+}"""
+        }
+    ]
+)
+
+# Default code refactoring prompt configuration
+DEFAULT_CODE_REFACTORING_PROMPT = CodeRefactoringPromptConfig(
+    system_message="""You are an expert code refactoring assistant that specializes in improving code structure and quality.
+Your task is to refactor the provided code according to the specified refactoring type and parameters.
+Return your response in JSON format with the following structure:
+{
+    "changes": {
+        "file_path": "new content for the file"
+    },
+    "description": "description of the refactoring",
+    "affected_files": ["list of affected file paths"],
+    "preview": {
+        "file_path": {
+            "original": "original content or section",
+            "refactored": "refactored content or section"
+        }
+    }
+}""",
+    user_message_template="""Refactor the following code:
+
+Refactoring type: {refactoring_type}
+Files:
+{files}
+Target symbol: {target_symbol}
+New name: {new_name}
+Selection: {selection}
+Options: {options}
+
+Please provide the refactored code and a description of the changes.""",
+    examples=[]
+)
+
+# Default code completion prompt configuration
+DEFAULT_CODE_COMPLETION_PROMPT = CodeCompletionPromptConfig(
+    system_message="""You are an expert code completion assistant that specializes in suggesting relevant code completions.
+Your task is to provide completion suggestions for the code at the specified position.
+Return your response in JSON format with the following structure:
+{
+    "items": [
+        {
+            "label": "display label",
+            "insert_text": "text to insert",
+            "kind": "completion item kind (optional)",
+            "detail": "additional details (optional)",
+            "documentation": "documentation (optional)",
+            "sort_text": "text for sorting (optional)"
+        }
+    ],
+    "is_incomplete": false
+}""",
+    user_message_template="""Provide code completion suggestions for the following:
+
+File path: {file_path}
+Position: {position}
+Prefix: {prefix}
+Context:
+```{language}
+{context}
+```
+Options: {options}
+
+Please provide relevant completion suggestions.""",
+    examples=[]
+)
+
 # Default prompt configuration
 DEFAULT_PROMPT_CONFIG = PromptConfig(
     code_generation=DEFAULT_CODE_GENERATION_PROMPT,
-    code_analysis=DEFAULT_CODE_ANALYSIS_PROMPT
+    code_analysis=DEFAULT_CODE_ANALYSIS_PROMPT,
+    cross_file_analysis=DEFAULT_CROSS_FILE_ANALYSIS_PROMPT,
+    code_refactoring=DEFAULT_CODE_REFACTORING_PROMPT,
+    code_completion=DEFAULT_CODE_COMPLETION_PROMPT
 )
 
 # Default OpenAI configuration

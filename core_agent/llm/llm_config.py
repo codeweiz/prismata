@@ -20,7 +20,7 @@ class LLMType(str, Enum):
 
 class LLMConfig(BaseModel):
     """Configuration for LLM models."""
-    
+
     model_type: LLMType = Field(
         description="Type of LLM model to use"
     )
@@ -51,7 +51,7 @@ class LLMConfig(BaseModel):
 
 class CodeGenerationPromptConfig(BaseModel):
     """Configuration for code generation prompts."""
-    
+
     system_message: str = Field(
         description="System message for the LLM"
     )
@@ -66,7 +66,52 @@ class CodeGenerationPromptConfig(BaseModel):
 
 class CodeAnalysisPromptConfig(BaseModel):
     """Configuration for code analysis prompts."""
-    
+
+    system_message: str = Field(
+        description="System message for the LLM"
+    )
+    user_message_template: str = Field(
+        description="Template for user messages"
+    )
+    examples: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Examples for few-shot learning"
+    )
+
+
+class CrossFileAnalysisPromptConfig(BaseModel):
+    """Configuration for cross-file analysis prompts."""
+
+    system_message: str = Field(
+        description="System message for the LLM"
+    )
+    user_message_template: str = Field(
+        description="Template for user messages"
+    )
+    examples: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Examples for few-shot learning"
+    )
+
+
+class CodeRefactoringPromptConfig(BaseModel):
+    """Configuration for code refactoring prompts."""
+
+    system_message: str = Field(
+        description="System message for the LLM"
+    )
+    user_message_template: str = Field(
+        description="Template for user messages"
+    )
+    examples: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Examples for few-shot learning"
+    )
+
+
+class CodeCompletionPromptConfig(BaseModel):
+    """Configuration for code completion prompts."""
+
     system_message: str = Field(
         description="System message for the LLM"
     )
@@ -81,14 +126,17 @@ class CodeAnalysisPromptConfig(BaseModel):
 
 class PromptConfig(BaseModel):
     """Configuration for prompts."""
-    
+
     code_generation: CodeGenerationPromptConfig
     code_analysis: CodeAnalysisPromptConfig
+    cross_file_analysis: CrossFileAnalysisPromptConfig
+    code_refactoring: Optional[CodeRefactoringPromptConfig] = None
+    code_completion: Optional[CodeCompletionPromptConfig] = None
 
 
 class LLMServiceConfig(BaseModel):
     """Configuration for the LLM service."""
-    
+
     llm: LLMConfig
     prompts: PromptConfig
     cache_enabled: bool = Field(

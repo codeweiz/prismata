@@ -2,15 +2,19 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as cp from 'child_process';
 import * as WebSocket from 'ws';
+import { EventEmitter } from 'events';
 
-export class AgentService {
+export class AgentService extends EventEmitter {
     private context: vscode.ExtensionContext;
     private agentProcess: cp.ChildProcess | null = null;
     private ws: WebSocket | null = null;
     private requestMap = new Map<string, { resolve: Function, reject: Function }>();
     private nextRequestId = 1;
+    private _isRunning: boolean = false;
+    private _history: any[] = [];
 
     constructor(context: vscode.ExtensionContext) {
+        super();
         this.context = context;
     }
 
@@ -59,7 +63,11 @@ export class AgentService {
                 // Connect to the agent via WebSocket
                 setTimeout(() => {
                     this.connectWebSocket(serverHost, serverPort)
-                        .then(resolve)
+                        .then(() => {
+                            this._isRunning = true;
+                            this.emit('statusChange', true);
+                            resolve();
+                        })
                         .catch(reject);
                 }, 1000); // Give the agent a second to start up
             } catch (error) {
@@ -83,6 +91,10 @@ export class AgentService {
             this.agentProcess.kill();
             this.agentProcess = null;
         }
+
+        // Update status
+        this._isRunning = false;
+        this.emit('statusChange', false);
     }
 
     /**
@@ -158,7 +170,12 @@ export class AgentService {
     /**
      * Generate code based on a prompt
      */
-    public async generateCode(prompt: string, context?: string, language?: string): Promise<any> {
+    public async generateCode(
+        prompt: string,
+        context?: string,
+        language?: string,
+        useProjectContext: boolean = true
+    ): Promise<any> {
         const editor = vscode.window.activeTextEditor;
         const document = editor?.document;
 
@@ -175,11 +192,18 @@ export class AgentService {
             }
         }
 
+        // Get file path for project context
+        const filePath = document?.uri.fsPath;
+
         return this.sendRequest('generate_code', {
             prompt,
             context,
             language: language || 'plaintext',
-            options: {}
+            file_path: filePath,
+            options: {
+                use_project_context: useProjectContext,
+                max_context_files: 3
+            }
         });
     }
 
@@ -202,6 +226,150 @@ export class AgentService {
         return this.sendRequest('analyze_code', {
             file_path: filePath,
             content: document?.getText()
+        });
+    }
+
+    /**
+     * Analyze dependencies between multiple files
+     */
+    public async analyzeCrossFileDependencies(filePaths: string[]): Promise<any> {
+        if (!filePaths || filePaths.length === 0) {
+            throw new Error('No files to analyze');
+        }
+
+        // Read file contents
+        const contentMap: Record<string, string> = {};
+        for (const filePath of filePaths) {
+            try {
+                const document = await vscode.workspace.openTextDocument(filePath);
+                contentMap[filePath] = document.getText();
+            } catch (error) {
+                console.error(`Error reading file ${filePath}:`, error);
+                // Continue with other files
+            }
+        }
+
+        return this.sendRequest('analyze_cross_file_dependencies', {
+            file_paths: filePaths,
+            content_map: contentMap,
+            options: {}
+        });
+    }
+
+    /**
+     * Refactor code
+     */
+    public async refactorCode(
+        refactoringType: string,
+        filePaths: string[],
+        targetSymbol?: string,
+        newName?: string,
+        selection?: Record<string, { start: { line: number, character: number }, end: { line: number, character: number } }>,
+        options?: Record<string, any>
+    ): Promise<any> {
+        if (!filePaths || filePaths.length === 0) {
+            throw new Error('No files to refactor');
+        }
+
+        if (refactoringType === 'rename' && (!targetSymbol || !newName)) {
+            throw new Error('Rename refactoring requires target symbol and new name');
+        }
+
+        if (refactoringType === 'extract_method' && !selection) {
+            throw new Error('Extract method refactoring requires a selection');
+        }
+
+        return this.sendRequest('refactor_code', {
+            refactoring_type: refactoringType,
+            file_paths: filePaths,
+            target_symbol: targetSymbol,
+            new_name: newName,
+            selection: selection,
+            options: options || {}
+        });
+    }
+
+    /**
+     * Complete code at the current position
+     */
+    public async completeCode(
+        filePath: string,
+        position: { line: number, character: number },
+        prefix?: string,
+        context?: string,
+        options?: Record<string, any>
+    ): Promise<any> {
+        if (!filePath) {
+            throw new Error('No file path provided');
+        }
+
+        return this.sendRequest('complete_code', {
+            file_path: filePath,
+            position: position,
+            prefix: prefix,
+            context: context,
+            options: options || {}
+        });
+    }
+
+    /**
+     * Get operation history
+     */
+    public async getOperationHistory(
+        operationType?: string,
+        status?: string,
+        limit: number = 100,
+        offset: number = 0
+    ): Promise<any> {
+        return this.sendRequest('get_operation_history', {
+            operation_type: operationType,
+            status: status,
+            limit: limit,
+            offset: offset
+        });
+    }
+
+    /**
+     * Get operation details
+     */
+    public async getOperation(operationId: string): Promise<any> {
+        if (!operationId) {
+            throw new Error('No operation ID provided');
+        }
+
+        return this.sendRequest('get_operation', {
+            operation_id: operationId
+        });
+    }
+
+    /**
+     * Retry an operation
+     */
+    public async retryOperation(operationId: string): Promise<any> {
+        if (!operationId) {
+            throw new Error('No operation ID provided');
+        }
+
+        return this.sendRequest('retry_operation', {
+            operation_id: operationId
+        });
+    }
+
+    /**
+     * Recover an operation
+     */
+    public async recoverOperation(operationId: string, strategyName: string): Promise<any> {
+        if (!operationId) {
+            throw new Error('No operation ID provided');
+        }
+
+        if (!strategyName) {
+            throw new Error('No strategy name provided');
+        }
+
+        return this.sendRequest('recover_operation', {
+            operation_id: operationId,
+            strategy_name: strategyName
         });
     }
 
@@ -270,5 +438,36 @@ export class AgentService {
             encoding,
             create_backup: createBackup
         });
+    }
+
+    /**
+     * Check if the agent is running
+     */
+    public isAgentRunning(): boolean {
+        return this._isRunning;
+    }
+
+    /**
+     * Register a status change listener
+     */
+    public onStatusChange(listener: (isRunning: boolean) => void): void {
+        this.on('statusChange', listener);
+    }
+
+    /**
+     * Register a history update listener
+     */
+    public onHistoryUpdate(listener: (history: any[]) => void): void {
+        this.on('historyUpdate', listener);
+    }
+
+    /**
+     * Get operation history
+     */
+    public async getHistory(): Promise<any[]> {
+        // In a real implementation, this would fetch history from the agent
+        // For now, we'll just return the cached history
+        this.emit('historyUpdate', this._history);
+        return this._history;
     }
 }

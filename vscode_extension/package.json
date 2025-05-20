@@ -14,12 +14,50 @@
     "onCommand:prismata.startAgent",
     "onCommand:prismata.generateCode",
     "onCommand:prismata.analyzeCode",
+    "onCommand:prismata.analyzeCrossFileDependencies",
+    "onCommand:prismata.renameSymbol",
+    "onCommand:prismata.extractMethod",
+    "onCommand:prismata.showMenu",
+    "onCommand:prismata.showContextMenu",
     "onCommand:prismata.readFile",
     "onCommand:prismata.getFileMetadata",
-    "onCommand:prismata.writeFile"
+    "onCommand:prismata.writeFile",
+    "onView:prismata.sidebar"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "prismata-sidebar",
+          "title": "Prismata",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "prismata-sidebar": [
+        {
+          "id": "prismata.sidebar",
+          "name": "Operations",
+          "type": "webview"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "prismata.explorer",
+          "name": "Prismata"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "prismata.showContextMenu",
+          "group": "prismata"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "prismata.startAgent",
@@ -34,6 +72,18 @@
         "title": "Prismata: Analyze Code"
       },
       {
+        "command": "prismata.analyzeCrossFileDependencies",
+        "title": "Prismata: Analyze Cross-File Dependencies"
+      },
+      {
+        "command": "prismata.renameSymbol",
+        "title": "Prismata: Rename Symbol"
+      },
+      {
+        "command": "prismata.extractMethod",
+        "title": "Prismata: Extract Method"
+      },
+      {
         "command": "prismata.readFile",
         "title": "Prismata: Read File"
       },
@@ -44,6 +94,15 @@
       {
         "command": "prismata.writeFile",
         "title": "Prismata: Write File"
+      },
+      {
+        "command": "prismata.showMenu",
+        "title": "Prismata: Show Menu"
+      },
+      {
+        "command": "prismata.showContextMenu",
+        "title": "Prismata: AI Actions",
+        "enablement": "editorFocus"
       }
     ],
     "configuration": {
@@ -68,6 +127,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically start the Prismata agent on extension activation"
+        },
+        "prismata.useProjectContextForCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use project context for code completion"
+        },
+        "prismata.enableCodeCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-powered code completion"
         }
       }
     }

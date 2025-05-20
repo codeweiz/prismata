@@ -17,6 +17,10 @@ from core_agent.agent.state_models import AgentState
 from core_agent.agent.workflow_nodes import understand_request, analyze_context, plan_changes, execute_changes, verify_results
 from core_agent.tools.file_tools import ReadFileTool, GetFileMetadataTool
 from core_agent.tools.code_tools import GenerateCodeTool, AnalyzeCodeTool
+from core_agent.tools.cross_file_analysis_tool import CrossFileAnalysisTool
+from core_agent.tools.context_collection_tool import ContextCollectionTool
+from core_agent.tools.refactoring_tools import RefactorCodeTool
+from core_agent.tools.code_completion_tool import CodeCompletionTool
 from core_agent.tools.write_file_tool import WriteFileTool, ConfirmWriteFileTool
 from core_agent.llm.llm_service import LLMService
 from core_agent.llm.default_config import DEFAULT_LLM_SERVICE_CONFIG
@@ -60,6 +64,10 @@ class LangGraphAgent(BaseAgent):
             GetFileMetadataTool(),
             GenerateCodeTool(self.llm_service),
             AnalyzeCodeTool(self.llm_service),
+            CrossFileAnalysisTool(self.llm_service),
+            ContextCollectionTool(),
+            RefactorCodeTool(self.llm_service),
+            CodeCompletionTool(self.llm_service),
             WriteFileTool(),
             ConfirmWriteFileTool()
         ]
